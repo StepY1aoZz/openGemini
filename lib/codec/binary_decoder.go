@@ -61,6 +61,26 @@ func (c *BinaryDecoder) Uint64() uint64 {
 	return i
 }
 
+func (c *BinaryDecoder) VarUint64() uint64 {
+	t, u, err := encoding.UnmarshalVarUint64(c.buf[c.offset:])
+	if err != nil {
+		return 0
+	}
+	diff := len(c.buf) - len(t) - c.offset
+	c.offset += diff
+	return u
+}
+
+func (c *BinaryDecoder) VarInt64() int64 {
+	t, i, err := encoding.UnmarshalVarInt64(c.buf[c.offset:])
+	if err != nil {
+		return 0
+	}
+	diff := len(c.buf) - len(t) - c.offset
+	c.offset += diff
+	return i
+}
+
 func (c *BinaryDecoder) Int16() int16 {
 	i := encoding.UnmarshalInt16(c.buf[c.offset : c.offset+sizeOfInt16])
 	c.offset += sizeOfInt16
@@ -238,6 +258,17 @@ func (c *BinaryDecoder) StringSlice() []string {
 
 func (c *BinaryDecoder) BytesNoCopy() []byte {
 	l := c.Uint32()
+	if l == 0 {
+		return nil
+	}
+	b := c.buf[c.offset : c.offset+int(l)]
+	c.offset += int(l)
+
+	return b
+}
+
+func (c *BinaryDecoder) BytesNoCopy2() []byte {
+	l := c.VarUint64()
 	if l == 0 {
 		return nil
 	}

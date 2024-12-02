@@ -42,6 +42,30 @@ func (rec *Record) Marshal(buf []byte) ([]byte, error) {
 	return buf, nil
 }
 
+func (rec *Record) Marshal2(buf []byte) ([]byte, error) {
+	var err error
+	// Schema
+	buf = codec.AppendVarUInt64(buf, uint64(len(rec.Schema)))
+	for i := 0; i < len(rec.Schema); i++ {
+		buf = codec.AppendVarUInt64(buf, uint64(rec.Schema[i].Size2()))
+		buf, err = rec.Schema[i].Marshal2(buf)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// ColVal
+	buf = codec.AppendVarUInt64(buf, uint64(len(rec.ColVals)))
+	for i := 0; i < len(rec.ColVals); i++ {
+		buf = codec.AppendVarUInt64(buf, uint64(rec.ColVals[i].Size2()))
+		buf, err = rec.ColVals[i].Marshal2(buf)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return buf, nil
+}
+
 func (rec *Record) Unmarshal(buf []byte) error {
 	if len(buf) == 0 {
 		return nil
@@ -79,6 +103,43 @@ func (rec *Record) Unmarshal(buf []byte) error {
 	return nil
 }
 
+func (rec *Record) Unmarshal2(buf []byte) error {
+	if len(buf) == 0 {
+		return nil
+	}
+	var err error
+	dec := codec.NewBinaryDecoder(buf)
+
+	// Schema
+	fieldLen := int(dec.VarUint64())
+	rec.Schema = make([]Field, fieldLen)
+	for i := 0; i < fieldLen; i++ {
+		subBuf := dec.BytesNoCopy2()
+		if len(subBuf) == 0 {
+			continue
+		}
+		rec.Schema[i] = Field{}
+		if err = rec.Schema[i].Unmarshal2(subBuf); err != nil {
+			return err
+		}
+	}
+
+	// ColVal
+	colLen := int(dec.VarUint64())
+	rec.ColVals = make([]ColVal, colLen)
+	for i := 0; i < colLen; i++ {
+		subBuf := dec.BytesNoCopy2()
+		if len(subBuf) == 0 {
+			continue
+		}
+		rec.ColVals[i] = ColVal{}
+		if err = rec.ColVals[i].Unmarshal2(subBuf); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (rec *Record) CodecSize() int {
 	size := 0
 
@@ -94,6 +155,25 @@ func (rec *Record) CodecSize() int {
 	for i := 0; i < len(rec.ColVals); i++ {
 		size += codec.SizeOfUint32()
 		size += rec.ColVals[i].Size()
+	}
+	return size
+}
+
+func (rec *Record) CodecSize2() int {
+	size := 0
+
+	// Schema
+	size += codec.SizeOfVarUInt64(uint64(len(rec.Schema)))
+	for i := 0; i < len(rec.Schema); i++ {
+		size += codec.SizeOfVarUInt64(uint64(rec.Schema[i].Size2()))
+		size += rec.Schema[i].Size2()
+	}
+
+	// ColVal
+	size += codec.SizeOfVarUInt64(uint64(len(rec.ColVals)))
+	for i := 0; i < len(rec.ColVals); i++ {
+		size += codec.SizeOfVarUInt64(uint64(rec.ColVals[i].Size2()))
+		size += rec.ColVals[i].Size2()
 	}
 	return size
 }

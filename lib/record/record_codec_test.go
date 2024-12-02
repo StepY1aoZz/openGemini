@@ -16,6 +16,7 @@ package record_test
 
 import (
 	"reflect"
+	"strconv"
 	"testing"
 
 	"github.com/openGemini/openGemini/lib/record"
@@ -62,4 +63,102 @@ func TestRecodeCodec(t *testing.T) {
 			t.Fatal("marshal colVal failed")
 		}
 	}
+}
+
+func TestRecordCodec2(t *testing.T) {
+	s := record.Schemas{
+		record.Field{Type: influx.Field_Type_Int, Name: "int"},
+		record.Field{Type: influx.Field_Type_Float, Name: "float"},
+		record.Field{Type: influx.Field_Type_Boolean, Name: "boolean"},
+		record.Field{Type: influx.Field_Type_String, Name: "string"},
+		record.Field{Type: influx.Field_Type_Int, Name: "time"},
+	}
+	rec := genRowRec(s,
+		[]int{0, 1, 1, 1}, []int64{0, 2, 3, 4},
+		[]int{1, 0, 1, 1}, []float64{1, 0, 3, 4},
+		[]int{1, 1, 0, 1}, []string{"a", "b", "", "d"},
+		[]int{1, 1, 1, 0}, []bool{true, true, true, false},
+		[]int64{1, 2, 3, 4})
+
+	var err error
+	pc := make([]byte, 0, rec.CodecSize2())
+	pc, err = rec.Marshal2(pc)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	if len(pc) != rec.CodecSize2() {
+		t.Fatalf("error size, exp: %d; got: %d", len(pc), rec.CodecSize2())
+	}
+
+	newRec := &record.Record{}
+	err = newRec.Unmarshal2(pc)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+
+	if !reflect.DeepEqual(rec.Schema, newRec.Schema) {
+		t.Fatalf("marshal schema failed")
+	}
+
+	for i := 0; i < rec.Len(); i++ {
+		if !reflect.DeepEqual(rec.ColVals[i], newRec.ColVals[i]) {
+			t.Fatal("marshal colVal failed")
+		}
+	}
+}
+
+func mockLargeRecord() (r *record.Record) {
+	const schemaLen = 4
+	s := record.Schemas{}
+	for i := 0; i < schemaLen; i++ {
+		s = append(s, record.Field{Type: influx.Field_Type_Int, Name: "int" + strconv.Itoa(i)})
+		s = append(s, record.Field{Type: influx.Field_Type_Float, Name: "float" + strconv.Itoa(i)})
+		s = append(s, record.Field{Type: influx.Field_Type_Boolean, Name: "boolean" + strconv.Itoa(i)})
+		s = append(s, record.Field{Type: influx.Field_Type_String, Name: "boolean" + strconv.Itoa(i)})
+	}
+	s = append(s, record.Field{Type: influx.Field_Type_Int, Name: "time"})
+
+	const recLen = 800
+	bitMap := make([]int, recLen)
+	intVals := make([]int64, recLen)
+	floatVals := make([]float64, recLen)
+	stringVals := make([]string, recLen)
+	boolVals := make([]bool, recLen)
+	timeVals := make([]int64, recLen)
+	for i := 0; i < recLen; i++ {
+		bitMap[i] = 1
+		intVals[i] = int64(i * 17)
+		floatVals[i] = float64(i) * 133.43
+		stringVals[i] = "test"
+		boolVals[i] = i%2 == 0
+		timeVals[i] = int64(i + 1)
+	}
+	r = genRowRec(s, bitMap, intVals, bitMap, floatVals, bitMap, stringVals, bitMap, boolVals, timeVals)
+	return
+}
+
+func BenchmarkRecord_Marshal2(b *testing.B) {
+	r := mockLargeRecord()
+	for i := 0; i < b.N; i++ {
+		buf := make([]byte, 0, r.CodecSize2())
+		buf, _ = r.Marshal2(buf)
+		_ = buf
+
+		newO := &record.Record{}
+		_ = newO.Unmarshal2(buf)
+	}
+	b.Logf("length of record_marshal2: %d", r.CodecSize2())
+}
+
+func BenchmarkRecord_Marshal(b *testing.B) {
+	r := mockLargeRecord()
+	for i := 0; i < b.N; i++ {
+		buf := make([]byte, 0, r.CodecSize())
+		buf, _ = r.Marshal(buf)
+		_ = buf
+
+		newO := &record.Record{}
+		_ = newO.Unmarshal(buf)
+	}
+	b.Logf("length of record_marshal: %d", r.CodecSize())
 }

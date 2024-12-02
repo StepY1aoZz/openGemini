@@ -218,3 +218,11 @@ func AppendMapStringString(b []byte, m map[string]string) []byte {
 	}
 	return b
 }
+
+func AppendVarUInt64(b []byte, a uint64) []byte {
+	return encoding.MarshalVarUint64(b, a)
+}
+
+func AppendVarInt64(b []byte, a int64) []byte {
+	return encoding.MarshalVarInt64(b, a)
+}

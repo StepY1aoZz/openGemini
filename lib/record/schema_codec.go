@@ -22,6 +22,12 @@ func (f *Field) Marshal(buf []byte) ([]byte, error) {
 	return buf, nil
 }
 
+func (f *Field) Marshal2(buf []byte) ([]byte, error) {
+	buf = codec.AppendString(buf, f.Name)
+	buf = codec.AppendVarInt64(buf, int64(f.Type))
+	return buf, nil
+}
+
 func (f *Field) Unmarshal(buf []byte) error {
 	if len(buf) == 0 {
 		return nil
@@ -33,9 +39,27 @@ func (f *Field) Unmarshal(buf []byte) error {
 	return nil
 }
 
+func (f *Field) Unmarshal2(buf []byte) error {
+	if len(buf) == 0 {
+		return nil
+	}
+
+	dec := codec.NewBinaryDecoder(buf)
+	f.Name = dec.String()
+	f.Type = int(dec.VarInt64())
+	return nil
+}
+
 func (f *Field) Size() int {
 	size := 0
 	size += codec.SizeOfString(f.Name)
 	size += codec.SizeOfInt()
+	return size
+}
+
+func (f *Field) Size2() int {
+	size := 0
+	size += codec.SizeOfString(f.Name)
+	size += codec.SizeOfVarInt64(int64(f.Type))
 	return size
 }

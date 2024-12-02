@@ -106,6 +106,21 @@ type CodecObject struct {
 	subInterfaceSlice []IObject
 }
 
+func TestVarSize(t *testing.T) {
+	buf := make([]byte, 0)
+	buf = codec.AppendVarInt64(buf, -8)
+	assert.Equal(t, len(buf), codec.SizeOfVarInt64(-8))
+	buf = buf[:0]
+	buf = codec.AppendVarUInt64(buf, 8)
+	assert.Equal(t, len(buf), codec.SizeOfVarUInt64(8))
+	buf = buf[:0]
+	buf = codec.AppendVarUInt64(buf, 120340)
+	assert.Equal(t, len(buf), codec.SizeOfVarUInt64(120340))
+	buf = buf[:0]
+	buf = codec.AppendVarInt64(buf, 120340)
+	assert.Equal(t, len(buf), codec.SizeOfVarInt64(120340))
+}
+
 func TestGen(t *testing.T) {
 	tmpDir := t.TempDir()
 	obj := &CodecObject{

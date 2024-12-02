@@ -54,6 +54,27 @@ func SizeOfInt64() int {
 	return sizeOfInt64
 }
 
+func SizeOfVarInt64(a int64) int {
+	a = (a << 1) ^ (a >> 63) // zig-zag
+	size := 0
+	for a > 0x7f {
+		size += 1
+		a >>= 7
+	}
+	size += 1
+	return size
+}
+
+func SizeOfVarUInt64(a uint64) int {
+	size := 0
+	for a > 0x7f {
+		size += 1
+		a >>= 7
+	}
+	size += 1
+	return size
+}
+
 func SizeOfUint8() int {
 	return sizeOfUint8
 }

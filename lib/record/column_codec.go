@@ -26,6 +26,16 @@ func (cv *ColVal) Marshal(buf []byte) ([]byte, error) {
 	return buf, nil
 }
 
+func (cv *ColVal) Marshal2(buf []byte) ([]byte, error) {
+	buf = codec.AppendVarInt64(buf, int64(cv.Len))
+	buf = codec.AppendVarInt64(buf, int64(cv.NilCount))
+	buf = codec.AppendVarInt64(buf, int64(cv.BitMapOffset))
+	buf = codec.AppendBytes(buf, cv.Val)
+	buf = codec.AppendBytes(buf, cv.Bitmap)
+	buf = codec.AppendUint32Slice(buf, cv.Offset)
+	return buf, nil
+}
+
 func (cv *ColVal) Unmarshal(buf []byte) error {
 	if len(buf) == 0 {
 		return nil
@@ -40,11 +50,36 @@ func (cv *ColVal) Unmarshal(buf []byte) error {
 	return nil
 }
 
+func (cv *ColVal) Unmarshal2(buf []byte) error {
+	if len(buf) == 0 {
+		return nil
+	}
+	dec := codec.NewBinaryDecoder(buf)
+	cv.Len = int(dec.VarInt64())
+	cv.NilCount = int(dec.VarInt64())
+	cv.BitMapOffset = int(dec.VarInt64())
+	cv.Val = dec.Bytes()
+	cv.Bitmap = dec.Bytes()
+	cv.Offset = dec.Uint32Slice()
+	return nil
+}
+
 func (cv *ColVal) Size() int {
 	size := 0
 	size += codec.SizeOfInt()                  // Len
 	size += codec.SizeOfInt()                  // NilCount
 	size += codec.SizeOfInt()                  // BitMapOffset
+	size += codec.SizeOfByteSlice(cv.Val)      // Val
+	size += codec.SizeOfByteSlice(cv.Bitmap)   // Bitmap
+	size += codec.SizeOfUint32Slice(cv.Offset) // Offset
+	return size
+}
+
+func (cv *ColVal) Size2() int {
+	size := 0
+	size += codec.SizeOfVarInt64(int64(cv.Len))
+	size += codec.SizeOfVarInt64(int64(cv.NilCount))
+	size += codec.SizeOfVarInt64(int64(cv.BitMapOffset))
 	size += codec.SizeOfByteSlice(cv.Val)      // Val
 	size += codec.SizeOfByteSlice(cv.Bitmap)   // Bitmap
 	size += codec.SizeOfUint32Slice(cv.Offset) // Offset
