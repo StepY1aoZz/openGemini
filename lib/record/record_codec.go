@@ -79,6 +79,43 @@ func (rec *Record) Unmarshal(buf []byte) error {
 	return nil
 }
 
+func (rec *Record) Unmarshal2(buf []byte) error {
+	if len(buf) == 0 {
+		return nil
+	}
+	var err error
+	dec := codec.NewBinaryDecoder(buf)
+
+	// Schema
+	fieldLen := int(dec.Uint32())
+	rec.Schema = make([]Field, fieldLen)
+	for i := 0; i < fieldLen; i++ {
+		subBuf := dec.BytesNoCopy()
+		if len(subBuf) == 0 {
+			continue
+		}
+		rec.Schema[i] = Field{}
+		if err = rec.Schema[i].Unmarshal(subBuf); err != nil {
+			return err
+		}
+	}
+
+	// ColVal
+	colLen := int(dec.Uint32())
+	rec.ColVals = make([]ColVal, colLen)
+	for i := 0; i < colLen; i++ {
+		subBuf := dec.BytesNoCopy()
+		if len(subBuf) == 0 {
+			continue
+		}
+		rec.ColVals[i] = ColVal{}
+		if err = rec.ColVals[i].Unmarshal2(subBuf); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (rec *Record) CodecSize() int {
 	size := 0
 

@@ -169,6 +169,17 @@ func (c *BinaryDecoder) Uint32Slice() []uint32 {
 	return a
 }
 
+func (c *BinaryDecoder) Uint32Slice2() []uint32 {
+	l := c.Uint32()
+	if l == 0 {
+		return nil
+	}
+
+	size := int(l) * util.Uint32SizeBytes
+	a := util.Bytes2Uint32Slice(c.noCopy(size))
+	return a
+}
+
 func (c *BinaryDecoder) Uint64Slice() []uint64 {
 	l := c.Uint32()
 	if l == 0 {
@@ -287,4 +298,8 @@ func (c *BinaryDecoder) copy(size int) []byte {
 	copy(b, c.buf[c.offset:c.offset+size])
 	c.offset += size
 	return b
+}
+
+func (c *BinaryDecoder) noCopy(size int) []byte {
+	return c.buf[c.offset : c.offset+size]
 }
